@@ -15,12 +15,13 @@ def build_chain():
     env = os.getenv("PINECONE_ENV")
     index_name = os.getenv("PINECONE_INDEX")
     api_key = os.getenv("PINECONE_API_KEY")
+    host = os.getenv("PINECONE_HOST")
     
-    logger.info(f"QA 체인 빌드: Pinecone 환경={env}, 인덱스={index_name}")
+    logger.info(f"QA 체인 빌드: Pinecone 환경={env}, 인덱스={index_name}, 호스트={host}")
     
     # Pinecone 초기화 (여기서 한 번 더 초기화)
     try:
-        env = "us-east-1-aws"  # 강제 환경 설정
+        env = "us-east-1"  # 강제 환경 설정
         logger.info(f"QA 체인에서 Pinecone 환경 강제 설정: {env}")
         
         pinecone.init(api_key=api_key, environment=env)
@@ -34,6 +35,10 @@ def build_chain():
     logger.info("OpenAI 임베딩 초기화 완료")
     
     try:
+        # 호스트 정보 로깅 (참고용)
+        logger.info(f"Pinecone 호스트 참고용: {host}")
+        
+        # Pinecone 벡터스토어 생성 - 구 버전 Pinecone 방식
         vectordb = Pinecone.from_existing_index(
             index_name=index_name,
             embedding=embeddings
