@@ -20,6 +20,7 @@ class ChatRequest(BaseModel):
 def chat(req: ChatRequest, db = Depends(get_mongo)):
     try:
         logger.info(f"채팅 요청 받음: 세션={req.session_id}, 메시지 길이={len(req.message)}")
+        logger.info(f"메시지 타입: {type(req.message)}, 내용: {req.message[:100]}")
         
         # 메시지 이력 가져오기
         history = db.history.find_one({"_id": req.session_id}) or {"messages": []}
@@ -32,14 +33,22 @@ def chat(req: ChatRequest, db = Depends(get_mongo)):
         try:
             # LangChain을 통한 응답 생성 시도
             logger.info("LangChain에 질문 전달 중...")
-            response = chain({"question": req.message, "chat_history": history["messages"]})
-            logger.info("응답 받음: 길이=" + str(len(response["answer"])))
+            
+            # 메시지가 문자열인지 확인
+            query_text = req.message
+            if not isinstance(query_text, str):
+                logger.warning(f"메시지가 문자열이 아님: {type(query_text)}")
+                query_text = str(query_text) if query_text is not None else ""
+            
+            # 수정된 체인 호출 방식 - 직접 문자열만 전달
+            response = chain.invoke(query_text)
+            logger.info("응답 받음: 길이=" + str(len(response)))
             
             # 응답 저장
-            history["messages"].append((req.message, response["answer"]))
+            history["messages"].append((req.message, response))
             db.history.update_one({"_id": req.session_id}, {"$set": history}, upsert=True)
             
-            return {"answer": response["answer"]}
+            return {"answer": response}
             
         except Exception as e:
             # Pinecone 또는 OpenAI 연결 오류 처리
@@ -51,6 +60,12 @@ def chat(req: ChatRequest, db = Depends(get_mongo)):
             if "SSLEOFError" in error_msg or "Max retries exceeded" in error_msg:
                 return {
                     "answer": "Pinecone 벡터 DB 연결에 문제가 있습니다. PDF 문서가 업로드되었는지 확인해주세요. 지금은 일반 대화만 가능합니다."
+                }
+            
+            # TypeError 처리 - OpenAI 임베딩 문제
+            if "TypeError: argument 'text'" in error_msg:
+                return {
+                    "answer": "메시지 형식 오류가 발생했습니다. 일반 텍스트로 질문해주세요."
                 }
             
             # 기타 LangChain 오류

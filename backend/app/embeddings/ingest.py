@@ -1,59 +1,57 @@
 """
 PDF 폴더를 돌면서 텍스트 추출 → LangChain 문서 청크 → Pinecone 업로드
 """
-from langchain.document_loaders import PyPDFLoader
+from langchain_community.document_loaders import PyPDFLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain.embeddings.openai import OpenAIEmbeddings
-from langchain.vectorstores import Pinecone
-import glob, os, pinecone
+from langchain_openai import OpenAIEmbeddings
+from langchain_pinecone import PineconeVectorStore
+import glob, os
 import sys
+from pinecone import Pinecone as PineconeClient
 
 # 환경 변수 출력
 api_key = os.getenv("PINECONE_API_KEY")
-env = os.getenv("PINECONE_ENV")
 index_name = os.getenv("PINECONE_INDEX")
 host = os.getenv("PINECONE_HOST")
 
-print(f"환경 변수 확인: PINECONE_ENV={env}, PINECONE_INDEX={index_name}, PINECONE_HOST={host}")
+print(f"환경 변수 확인: PINECONE_INDEX={index_name}, PINECONE_HOST={host}")
 print(f"API 키 길이: {len(api_key) if api_key else 'None'}")
 
 try:
     # API 키와 환경 변수가 정확히 설정되었는지 확인
-    if not api_key or not env or not index_name:
+    if not api_key or not index_name or not host:
         print("⚠️ Pinecone 환경 변수가 설정되지 않았습니다.")
         sys.exit(1)
     
-    # 명시적으로 실제 region 설정
-    env = "us-east-1"
-    print(f"환경 변수 강제 설정: {env}")
-    
-    # Pinecone 초기화
-    pinecone.init(api_key=api_key, environment=env)
-    print(f"✅ Pinecone 초기화 성공 - 환경: {env}")
+    # Pinecone 3.x 버전 API로 초기화
+    pc = PineconeClient(api_key=api_key)
+    print(f"✅ Pinecone 초기화 성공")
     
     # 인덱스 목록 확인
-    indexes = pinecone.list_indexes()
-    print(f"사용 가능한 인덱스: {indexes}")
+    indexes = pc.list_indexes()
+    index_names = [idx.name for idx in indexes]
+    print(f"사용 가능한 인덱스: {index_names}")
     
-    if index_name not in indexes:
+    if index_name not in index_names:
         print(f"⚠️ {index_name} 인덱스를 찾을 수 없습니다.")
         sys.exit(1)
     
-    # 호스트 로깅 (참고용)
-    print(f"✅ Pinecone 호스트 참고용: {host}")
+    # 호스트 로깅
+    print(f"✅ Pinecone 호스트 사용: {host}")
     
-    # 인덱스 연결 - 구 버전 Pinecone 방식
-    index = pinecone.Index(index_name)
+    # 인덱스 연결 - 3.x 버전 방식
+    index = pc.Index(host=host)
     print(f"✅ 인덱스 연결 성공: {index_name}")
     
-    # 구 버전 OpenAI 임베딩 사용
+    # OpenAI 임베딩 초기화
     emb = OpenAIEmbeddings()
     print("✅ OpenAI 임베딩 초기화 성공")
     
-    # 벡터스토어 직접 생성 - 구 버전 방식
-    vectorstore = Pinecone.from_existing_index(
-        index_name=index_name, 
-        embedding=emb
+    # 벡터스토어 직접 생성 - 최신 langchain-pinecone 버전 방식
+    vectorstore = PineconeVectorStore(
+        index=index,
+        embedding=emb,
+        text_key="text"
     )
     print("✅ 벡터스토어 연결 성공")
     
