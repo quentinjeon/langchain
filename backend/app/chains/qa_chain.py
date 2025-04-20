@@ -32,7 +32,7 @@ def build_chain():
         logger.error(f"Pinecone 초기화 오류: {str(e)}")
         raise
     
-    # OpenAI 임베딩 초기화
+    # OpenAI 임베딩 초기화 - 기본 1536 차원
     embeddings = OpenAIEmbeddings()
     logger.info("OpenAI 임베딩 초기화 완료")
     

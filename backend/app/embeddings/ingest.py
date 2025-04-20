@@ -36,6 +36,10 @@ try:
         print(f"⚠️ {index_name} 인덱스를 찾을 수 없습니다.")
         sys.exit(1)
     
+    # 인덱스 정보 확인
+    index_info = pc.describe_index(index_name)
+    print(f"✅ 인덱스 정보: {index_info}")
+    
     # 호스트 로깅
     print(f"✅ Pinecone 호스트 사용: {host}")
     
@@ -43,7 +47,7 @@ try:
     index = pc.Index(host=host)
     print(f"✅ 인덱스 연결 성공: {index_name}")
     
-    # OpenAI 임베딩 초기화
+    # OpenAI 임베딩 초기화 - 기본 1536 차원
     emb = OpenAIEmbeddings()
     print("✅ OpenAI 임베딩 초기화 성공")
     
@@ -62,10 +66,18 @@ try:
         print("⚠️ PDF 파일을 찾을 수 없습니다. pdf/ 디렉토리에 PDF 파일이 있는지 확인하세요.")
         sys.exit(1)
     
+    print(f"✅ 발견된 PDF 파일: {pdf_files}")
+    
     for path in pdf_files:
         print(f"처리 중: {path}")
         pages = PyPDFLoader(path).load_and_split(splitter)
-        vectorstore.add_texts([p.page_content for p in pages], [{"source": os.path.basename(path), "id": i} for i, p in enumerate(pages)])
+        print(f"✅ {len(pages)}개의 페이지 로드됨")
+        
+        # 벡터 저장
+        vectorstore.add_texts(
+            [p.page_content for p in pages], 
+            [{"source": os.path.basename(path), "id": i} for i, p in enumerate(pages)]
+        )
         print(f"✅ {path} → {len(pages)} chunks 업로드 완료")
     
 except Exception as e:
