@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from .routers import health, chat
+from .routers import health, chat, report
 
 app = FastAPI(title="AI Backend")
 
@@ -10,4 +10,5 @@ app.add_middleware(
 )
 
 app.include_router(health.router, prefix="/api")
-app.include_router(chat.router,  prefix="/api") 
+app.include_router(chat.router,  prefix="/api")
+app.include_router(report.router, prefix="/api") 
